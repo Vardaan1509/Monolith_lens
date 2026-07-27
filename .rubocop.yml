@@ -8,3 +8,10 @@ Style/StringLiterals:
 
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
+
+# RSpec `describe` blocks legitimately grow long (many `it` examples), so the
+# block-length metric is not meaningful for spec files.
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+    - "*.gemspec"

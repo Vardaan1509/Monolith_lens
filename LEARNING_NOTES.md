@@ -166,3 +166,32 @@ Run with `bundle exec rspec`. Very close to Jest's `describe`/`it`/`expect`.
 - `.rubocop.yml` → `AllCops: NewCops: enable` opts into RuboCop's newer checks.
 - `Gemspec/RequireMFA`: gemspec declares `rubygems_mfa_required = "true"`
   (supply-chain hygiene: publishing a new version would require MFA).
+
+---
+
+## Edge value object + more RSpec
+
+### `Edge` — a dependency, holding a list of evidence
+```ruby
+Edge = Data.define(:source, :target, :dependency_type, :evidence)
+```
+- `source` -> `target` are fully-qualified constant names (Strings).
+- `dependency_type` is a Symbol from a known set
+  (`:constant_reference`, `:inheritance`, `:include`, `:prepend`, `:extend`).
+- `evidence` is an **Array** of `Evidence`. Starting as an array (even when
+  extraction produces just one) means the later static+runtime merge step can
+  append more evidence for the same edge without a refactor.
+
+### RSpec `let`
+```ruby
+let(:evidence) { MonolithLens::Evidence.new(...) }
+```
+- Defines a **lazy, memoized** helper: the block runs the first time `evidence`
+  is used in an example, then the value is cached for that example.
+- Resets fresh for each `it`. The idiomatic way to share setup without repetition.
+
+### RuboCop: excluding legitimately-long blocks
+`Metrics/BlockLength` guards against over-long method/blocks, but some blocks are
+declaration-heavy by nature. We exclude:
+- `spec/**/*` — RSpec `describe` blocks hold many `it` examples.
+- `*.gemspec` — the `Gem::Specification.new do ... end` manifest block.
