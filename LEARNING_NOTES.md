@@ -94,3 +94,75 @@ end
 A magic comment at the top of every file. It makes string literals immutable,
 which is faster and prevents a class of bugs. Idiomatic in modern Ruby; RuboCop
 enforces it. (No direct C#/TS equivalent — strings are immutable there anyway.)
+
+---
+
+## Ruby language basics (the minimum to read our code)
+
+```ruby
+puts "Hello, world!"     # print a line — Ruby's hello world
+name = "Vardaan"         # variables: no type declaration (dynamically typed)
+def greet(who)           # method definition; `end` closes it (no braces)
+  "Hi #{who}"            # last expression is the return value; #{} = interpolation
+end
+```
+
+- **`end`** closes every block (def/class/module/if) — Ruby's alternative to `{ }`.
+- **Everything is an object**; call methods with a dot: `evidence.kind`.
+- **`#`** starts a comment. No semicolons; newline ends a statement.
+- **Constants** (including class/module names) start with a capital letter.
+
+### Symbols (`:static`)
+An immutable, interned name-tag. Same symbol is always the same object, so they
+are cheap and ideal as fixed labels / hash keys / flags.
+- `:static` (symbol) vs `"static"` (string): use a symbol when the value is a
+  fixed identifier in the code, a string when it is data/text.
+- Closest analogs: an enum member, or an interned string constant.
+
+### Keyword arguments
+```ruby
+Evidence.new(kind: :static, source_file: "x.rb", line: 1, rule: "r")
+```
+Arguments passed **by name** (`key: value`), which makes calls self-documenting.
+
+## Value objects with `Data.define` (Ruby 3.2+)
+```ruby
+Evidence = Data.define(:kind, :source_file, :line, :rule)
+```
+- Builds a new class whose instances hold exactly those named fields.
+- **Immutable** (no setters), compared **by value** (two with equal fields are
+  `==`), auto-generated getters (`.kind`, ...), readable `to_s`.
+- This is Ruby's answer to a **C# `record`**.
+- Alternatives: `Struct` (older, mutable by default) or a hand-written class.
+  We prefer `Data.define` for immutable value objects.
+
+## `require_relative`
+```ruby
+require_relative "monolith_lens/evidence"
+```
+Loads another Ruby file relative to the current file (no `.rb` needed). This is
+the plain-Ruby way to connect files. (Rails later does this automatically via
+"autoloading"; our gem wires it explicitly.)
+
+## RSpec syntax
+```ruby
+RSpec.describe MonolithLens::Evidence do   # a group of tests about this class
+  it "exposes the fields it was created with" do   # one example
+    evidence = described_class.new(...)    # described_class = the class in describe
+    expect(evidence.kind).to eq(:static)   # assertion: expect(x).to matcher
+  end
+end
+```
+Run with `bundle exec rspec`. Very close to Jest's `describe`/`it`/`expect`.
+
+## Cross-platform line endings (LF vs CRLF)
+- Linux/Ruby/CI expect **LF** (`\n`); Windows editors often write **CRLF** (`\r\n`).
+- RuboCop flags CRLF via `Layout/EndOfLine`.
+- Fix: a `.gitattributes` with `* text=auto eol=lf` pins the repo to LF.
+- Note for this project: creating a brand-new file from the Windows side writes
+  CRLF; we normalize to LF (git handles it on commit via `.gitattributes`).
+
+## Tooling niceties enabled
+- `.rubocop.yml` → `AllCops: NewCops: enable` opts into RuboCop's newer checks.
+- `Gemspec/RequireMFA`: gemspec declares `rubygems_mfa_required = "true"`
+  (supply-chain hygiene: publishing a new version would require MFA).

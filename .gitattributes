@@ -1,0 +1,5 @@
+# Normalize line endings to LF for all text files.
+# This project is developed in WSL/Linux and CI runs on Ubuntu, so LF is the
+# canonical line ending. This prevents CRLF from leaking in via editors on
+# Windows.
+* text=auto eol=lf
