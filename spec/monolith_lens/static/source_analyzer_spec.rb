@@ -51,4 +51,44 @@ RSpec.describe MonolithLens::Static::SourceAnalyzer do
   it "returns no edges (instead of raising) when the source has a syntax error" do
     expect(analyze("class Broken")).to eq([])
   end
+
+  it "records include/prepend/extend as mixin edges of the right type" do
+    source = <<~RUBY
+      class InvoiceProcessor
+        include Auditable
+        prepend Loggable
+        extend Configurable
+      end
+    RUBY
+
+    types = analyze(source).to_h { |edge| [edge.target, edge.dependency_type] }
+
+    expect(types).to eq(
+      "Auditable" => :include,
+      "Loggable" => :prepend,
+      "Configurable" => :extend
+    )
+  end
+
+  it "records each module listed in a single include" do
+    source = <<~RUBY
+      class Report
+        include Printable, Exportable
+      end
+    RUBY
+
+    expect(analyze(source).map(&:target)).to contain_exactly("Printable", "Exportable")
+  end
+
+  it "resolves a namespaced mixin and tags its evidence rule" do
+    source = <<~RUBY
+      class Report
+        include Concerns::Trackable
+      end
+    RUBY
+
+    edge = analyze(source).first
+    expect(edge.target).to eq("Concerns::Trackable")
+    expect(edge.evidence.first.rule).to eq("module_include")
+  end
 end

@@ -264,3 +264,46 @@ end
 false` and an `errors` list (error-tolerant parsing). `SourceAnalyzer` checks
 `result.success?` and returns `[]` on failure, so one broken file can't crash a
 whole scan.
+
+---
+
+## Detecting mixins (include / prepend / extend)
+
+Key insight: `include Auditable` is NOT special syntax — it's a plain **method
+call**. So in the AST it is a `CallNode` (name: `:include`, argument: the
+module). We add `visit_call_node` and recognise the three mixin method names.
+
+```ruby
+MIXIN_METHODS = %i[include prepend extend].freeze
+
+def visit_call_node(node)
+  record_mixins(node) if mixin_call?(node)
+  super
+end
+
+def mixin_call?(node)
+  node.receiver.nil? && MIXIN_METHODS.include?(node.name)
+end
+```
+- `node.receiver.nil?` = a *bare* `include Foo`, not `obj.include?(x)`. Guards
+  against mistaking an unrelated method call for a mixin.
+- `node.name` (`:include` etc.) is used directly as the `dependency_type`.
+- Multiple modules (`include A, B`) -> one edge each. Dynamic args
+  (`include some_method`) are ignored (they don't resolve to a constant).
+
+### New Ruby syntax
+- **`%i[a b c]`** = array of symbols `[:a, :b, :c]`. (`%w[a b c]` = array of
+  strings.)
+- **`.freeze`** = make an object immutable. Idiomatic on constants so they can't
+  be mutated by accident.
+- **`&.`** (safe navigation) = `node.arguments&.arguments` returns `nil` instead
+  of raising if `node.arguments` is `nil`. (C#: `?.`)
+- **`|| []`** = default value: `x || []` uses `[]` when `x` is `nil`/false.
+- **`.select { |x| ... }`** = keep elements where the block is truthy (filter).
+- **`.map(&:target)`** = call `.target` on each element. `&:sym` turns a symbol
+  into a block — shorthand for `.map { |x| x.target }`.
+- **`.to_h { |x| [key, value] }`** = build a Hash from a list.
+
+### New RSpec matcher
+- **`contain_exactly(a, b)`** = the array has exactly these elements, in any
+  order. (Order-independent, unlike `eq([a, b])`.)

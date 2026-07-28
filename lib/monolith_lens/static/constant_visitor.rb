@@ -12,6 +12,8 @@ module MonolithLens
     #
     # Currently detects: class inheritance (`class Foo < Bar`).
     class ConstantVisitor < Prism::Visitor
+      MIXIN_METHODS = %i[include prepend extend].freeze
+
       attr_reader :edges
 
       def initialize(source_file:)
@@ -36,7 +38,20 @@ module MonolithLens
         @namespace.pop
       end
 
+      # Visited for every method call. We care about bare mixin calls such as
+      # `include Auditable`, `prepend Loggable`, `extend Configurable`.
+      def visit_call_node(node)
+        record_mixins(node) if mixin_call?(node)
+        super
+      end
+
       private
+
+      # A bare `include`/`prepend`/`extend Foo` call (no explicit receiver,
+      # e.g. not `something.include(...)`).
+      def mixin_call?(node)
+        node.receiver.nil? && MIXIN_METHODS.include?(node.name)
+      end
 
       def record_inheritance(superclass_node)
         @edges << build_edge(
@@ -45,6 +60,25 @@ module MonolithLens
           rule: "class_inheritance",
           line: superclass_node.location.start_line
         )
+      end
+
+      def record_mixins(node)
+        return if @namespace.empty?
+
+        constant_arguments(node).each do |argument|
+          @edges << build_edge(
+            target: constant_name(argument),
+            dependency_type: node.name,
+            rule: "module_#{node.name}",
+            line: argument.location.start_line
+          )
+        end
+      end
+
+      # The constant arguments of a call (e.g. the modules in `include A, B`),
+      # ignoring anything dynamic like `include some_method`.
+      def constant_arguments(node)
+        (node.arguments&.arguments || []).select { |arg| constant_name(arg) }
       end
 
       # Current fully-qualified namespace, e.g. "Billing::InvoiceProcessor".
