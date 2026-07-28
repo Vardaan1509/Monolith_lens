@@ -4,13 +4,9 @@ require "prism"
 
 module MonolithLens
   module Static
-    # Entry point for static analysis of a piece of Ruby source.
-    #
-    # Parses the source into a Prism AST and walks it with ConstantVisitor to
-    # collect dependency Edges. It never executes the analysed code.
-    #
-    # If the source has a syntax error, it returns no edges instead of raising,
-    # so a single unparseable file cannot crash an entire scan.
+    # Parses Ruby source with Prism and walks it with ConstantVisitor to
+    # collect dependency Edges. Never executes the analyzed code. Returns
+    # no edges (instead of raising) if the source has a syntax error.
     class SourceAnalyzer
       def self.analyze(source, source_file:)
         new(source, source_file: source_file).analyze

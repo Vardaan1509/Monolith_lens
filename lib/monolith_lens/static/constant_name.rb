@@ -4,11 +4,9 @@ require "prism"
 
 module MonolithLens
   module Static
-    # Reconstructs a String name from a Prism constant node:
-    #   ConstantReadNode(:User)                    -> "User"
-    #   ConstantPathNode(parent: Accounts, :User)  -> "Accounts::User"
-    #
-    # Returns nil for anything that is not a constant node.
+    # Reconstructs a String name from a Prism constant node.
+    # ConstantReadNode(:User) becomes "User".
+    # ConstantPathNode(parent: Accounts, :User) becomes "Accounts::User".
     module ConstantName
       module_function
 

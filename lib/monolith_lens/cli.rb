@@ -5,13 +5,9 @@ require "thor"
 require_relative "../monolith_lens"
 
 module MonolithLens
-  # Command-line interface for MonolithLens.
-  #
-  # Kept deliberately thin: each command validates input, calls into the core
-  # library, and formats the result. No analysis logic lives here.
+  # Command-line interface for MonolithLens. Kept thin: each command
+  # validates input, calls into the core library, and formats the result.
   class CLI < Thor
-    # Tell Thor to exit with a non-zero status when a command fails, instead of
-    # swallowing the error (also silences a Thor deprecation warning).
     def self.exit_on_failure?
       true
     end
