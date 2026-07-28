@@ -91,4 +91,102 @@ RSpec.describe MonolithLens::Static::SourceAnalyzer do
     expect(edge.target).to eq("Concerns::Trackable")
     expect(edge.evidence.first.rule).to eq("module_include")
   end
+
+  it "records a qualified constant used as a call receiver (stronger rule)" do
+    source = <<~RUBY
+      module Billing
+        class InvoiceProcessor
+          def call
+            Accounts::User.find(1)
+          end
+        end
+      end
+    RUBY
+
+    edge = analyze(source).first
+    expect(edge.source).to eq("Billing::InvoiceProcessor")
+    expect(edge.target).to eq("Accounts::User")
+    expect(edge.dependency_type).to eq(:constant_reference)
+    expect(edge.evidence.first.rule).to eq("constant_reference_call")
+  end
+
+  it "records a qualified constant used as a plain value (weaker rule)" do
+    source = <<~RUBY
+      class Report
+        def build
+          klass = Accounts::User
+          klass
+        end
+      end
+    RUBY
+
+    edge = analyze(source).first
+    expect(edge.target).to eq("Accounts::User")
+    expect(edge.evidence.first.rule).to eq("constant_reference_value")
+  end
+
+  it "does not record bare (unqualified) constant references" do
+    source = <<~RUBY
+      class Report
+        def build
+          User.find(1)
+          value = MAX_SIZE
+          value
+        end
+      end
+    RUBY
+
+    expect(analyze(source)).to be_empty
+  end
+
+  it "records a qualified constant reference exactly once (no double counting)" do
+    source = <<~RUBY
+      class Report
+        def build
+          Accounts::User.find(1)
+        end
+      end
+    RUBY
+
+    expect(analyze(source).length).to eq(1)
+  end
+
+  it "records the full nested path, not its sub-paths" do
+    source = <<~RUBY
+      class Report
+        def build
+          Accounts::Admin::User.find(1)
+        end
+      end
+    RUBY
+
+    expect(analyze(source).map(&:target)).to eq(["Accounts::Admin::User"])
+  end
+
+  it "does not double-record a namespaced superclass as a reference" do
+    source = <<~RUBY
+      class User < ActiveRecord::Base
+      end
+    RUBY
+
+    edges = analyze(source)
+    expect(edges.length).to eq(1)
+    expect(edges.first.dependency_type).to eq(:inheritance)
+  end
+
+  it "records references from multiple qualified constants in a method" do
+    source = <<~RUBY
+      module Billing
+        class InvoiceProcessor
+          def call
+            user = Accounts::User.find(1)
+            Notifications::Mailer.deliver(user)
+          end
+        end
+      end
+    RUBY
+
+    targets = analyze(source).map(&:target)
+    expect(targets).to contain_exactly("Accounts::User", "Notifications::Mailer")
+  end
 end

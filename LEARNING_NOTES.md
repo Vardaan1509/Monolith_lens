@@ -307,3 +307,64 @@ end
 ### New RSpec matcher
 - **`contain_exactly(a, b)`** = the array has exactly these elements, in any
   order. (Order-independent, unlike `eq([a, b])`.)
+
+---
+
+## Constant references + a key design decision (precision vs. recall)
+
+### The design decision
+When code says `Accounts::User.find(1)`, that's a dependency. But constants
+appear everywhere (`String`, `MAX_SIZE`, local constants) and most are noise.
+
+- **Precision** = of what we report, how much is truly meaningful.
+- **Recall** = of the real dependencies, how many did we catch.
+Static analysis of a dynamic language can't max both at once.
+
+Decision (matches the project's "record evidence, don't pretend certainty"
+philosophy): **capture broadly, tag by strength, filter later** at the
+confidence-scoring step — rather than hard-dropping at extraction time. Reasoning:
+an experienced reviewer can dismiss a false edge quickly, but can't review an
+edge we never surfaced. A fuller, tagged list is more useful than a short,
+opinionated one.
+
+Rules produced:
+- qualified constant used as a call receiver -> `constant_reference_call` (strong)
+- qualified constant used any other way      -> `constant_reference_value` (weak)
+- bare constants (`String`, `MAX_SIZE`)       -> NOT recorded yet (needs a
+  whole-repo symbol table to tell app classes from built-ins/locals; documented
+  limitation, revisit after directory scanning exists).
+
+### `visit_constant_path_node` and NOT calling `super`
+A `Foo::Bar` is a `ConstantPathNode`. Its only child is its parent chain
+(`Foo`). If we descended into it we'd re-record sub-paths (`A::B` inside
+`A::B::C`). So this visit method deliberately does not call `super`. We already
+reconstruct the full name ourselves, so there's nothing useful below it.
+
+### Avoiding double-counting with a "handled" set
+The tree-walk naturally revisits nodes we already handled specifically — a
+superclass, a mixin argument, a class's own name, a call receiver. To avoid
+recording them a second time as generic references, we remember them:
+```ruby
+@handled = Set.new
+def mark_handled(node) = (@handled << node.object_id if node)
+def handled?(node)     = @handled.include?(node.object_id)
+```
+- **`object_id`** = a unique integer identity for an object. Prism returns the
+  same node instance whether we reach it via `node.superclass` or via the walk,
+  so their `object_id`s match — that's what makes this reliable.
+- **`Set`** = a collection of unique items with fast membership checks
+  (`include?`). Core in modern Ruby (no `require` needed).
+
+### Extracting a pure function into a module
+`constant_name` didn't depend on visitor state, so it moved out to its own
+`ConstantName` module (also keeps the visitor under RuboCop's class-length
+limit, and we'll reuse it in the Packwerk phase):
+```ruby
+module ConstantName
+  module_function        # makes the methods callable as ConstantName.call(...)
+  def call(node) = ...   # a pure function: same input -> same output, no state
+end
+```
+- **`module_function`** turns the following methods into module-level methods
+  you call on the module itself (`ConstantName.call(node)`), similar to a C#
+  `static` helper class. Good for stateless utilities.
