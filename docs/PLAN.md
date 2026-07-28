@@ -31,11 +31,16 @@ drive — that mount doesn't support the Unix file permissions Git/Ruby need).
 
 Phase 1 static-analysis core is COMPLETE.
 
-## Phase 2 — CLI Layer (Thor) ⬜
-`monolith-lens scan PATH` — walk a directory, run the analyzer on every `.rb`
-file, print results as JSON. First point where the tool is actually runnable
-end-to-end from a terminal.
-**Suggested review checkpoint: after this phase.**
+## Phase 2 — CLI Layer (Thor) ✅
+`monolith-lens scan PATH` — walks a directory, runs the analyzer on every `.rb`
+file, prints results as JSON (to stdout) plus a summary (to stderr).
+- ✅ `MonolithLens::Static::Scanner` (core: walk dir, aggregate edges)
+- ✅ `MonolithLens::Static::ScanResult` (files_scanned + edges)
+- ✅ `MonolithLens::CLI` (Thor) + `exe/monolith-lens` executable
+- ✅ Verified by dogfooding: scanning its own `lib/` produced correct edges.
+Run with: `bundle exec exe/monolith-lens scan <path>`
+
+**REVIEW CHECKPOINT: this is the planned stop-and-review point.**
 
 ## Phase 3 — Demo Rails App (4 domains) ⬜
 Accounts, Billing, Notifications, Reporting. Rails 8.1.3 + SQLite. Deliberately

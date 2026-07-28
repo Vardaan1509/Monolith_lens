@@ -47,6 +47,10 @@ Gem::Specification.new do |spec|
   # AST node shapes, which can shift between minor versions.
   spec.add_dependency "prism", "~> 1.9.0"
 
+  # Thor powers the command-line interface (`monolith-lens scan ...`). It's the
+  # same CLI toolkit Rails' own generators are built on.
+  spec.add_dependency "thor", "~> 1.5"
+
   # For more information and examples about making a new gem, check out our
   # guide at: https://guides.rubygems.org/make-your-own-gem/
 end

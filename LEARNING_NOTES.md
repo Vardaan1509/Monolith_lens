@@ -368,3 +368,68 @@ end
 - **`module_function`** turns the following methods into module-level methods
   you call on the module itself (`ConstantName.call(node)`), similar to a C#
   `static` helper class. Good for stateless utilities.
+
+---
+
+## Phase 2 — the CLI (Thor)
+
+### Thor: building a command-line tool
+```ruby
+class CLI < Thor
+  def self.exit_on_failure? = true          # exit non-zero on failure
+
+  desc "scan PATH", "one-line help text"    # declares the command + help
+  def scan(path)                            # the command body; PATH -> path
+    ...
+  end
+end
+CLI.start(ARGV)                             # parse ARGV and dispatch
+```
+- Each public method becomes a subcommand; `desc` gives its help text.
+- Method arguments map to CLI arguments (`scan PATH` -> `def scan(path)`).
+- `Thor` is what Rails' own `rails generate`/`rails new` are built on.
+- Private methods (below `private`) are helpers, not commands.
+
+### The executable: `exe/monolith-lens`
+```ruby
+#!/usr/bin/env ruby        # "shebang": run this file with ruby
+require "monolith_lens/cli"
+MonolithLens::CLI.start(ARGV)
+```
+- The gemspec's `bindir = "exe"` means files here become the gem's commands.
+- Made runnable with `chmod +x exe/monolith-lens` (the Unix "executable" bit).
+- Run it in dev with: `bundle exec exe/monolith-lens scan <path>`.
+
+### stdout vs stderr (why we split them)
+- **stdout** (`puts`) = the actual data (the JSON). Meant to be piped/parsed.
+- **stderr** (`warn`) = human messages ("Scanned 10 files..."). Kept off stdout
+  so `monolith-lens scan x > out.json` yields clean JSON, with the summary still
+  visible in the terminal. This is standard Unix tool behaviour.
+
+### The Scanner (core, not CLI)
+```ruby
+Dir.glob(File.join(@path, "**", "*.rb"))   # find every .rb recursively (**)
+File.read(file)                             # read a file's text (never execute)
+files.flat_map { |f| analyze_file(f) }      # map + flatten: each file -> many
+                                            #   edges, combined into one list
+Pathname.new(abs).relative_path_from(base)  # "billing/invoice.rb" not a long
+                                            #   absolute path
+```
+- `flat_map` = `map` then flatten one level. Each file yields an array of edges;
+  `flat_map` merges them into a single flat array.
+- Kept in core (`MonolithLens::Static::Scanner`) so the CLI stays a thin shell;
+  the CLI just calls the scanner and formats output.
+
+### JSON output
+```ruby
+JSON.pretty_generate(edges.map { |e| { source: e.source, ... , evidence: e.evidence.map(&:to_h) } })
+```
+- `Data#to_h` turns an Evidence into a plain hash; symbols become strings in
+  JSON (`:static` -> "static").
+
+### Testing a CLI
+- `Dir.mktmpdir { |dir| ... }` = make a throwaway temp directory (auto-deleted).
+- Capture output by temporarily swapping `$stdout`/`$stderr` for a `StringIO`,
+  then `JSON.parse` the captured string and assert on it.
+- `expect { ... }.to raise_error(SystemExit)` verifies the "path not found ->
+  exit 1" path.

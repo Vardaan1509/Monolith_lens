@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "monolith_lens/cli"
+
+MonolithLens::CLI.start(ARGV)
