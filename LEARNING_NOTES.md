@@ -195,3 +195,72 @@ let(:evidence) { MonolithLens::Evidence.new(...) }
 declaration-heavy by nature. We exclude:
 - `spec/**/*` — RSpec `describe` blocks hold many `it` examples.
 - `*.gemspec` — the `Gem::Specification.new do ... end` manifest block.
+
+---
+
+## Static analysis with Prism (the AST + Visitor)
+
+### AST (Abstract Syntax Tree)
+`Prism.parse(source)` turns Ruby *text* into a tree of typed **nodes** describing
+the code's structure: `ModuleNode`, `ClassNode`, `CallNode`, `ConstantReadNode`,
+`ConstantPathNode`, etc. Static analysis = walk this tree and turn interesting
+nodes into `Edge`s. We never run the code. (Same idea as a compiler front-end or
+a linter like ESLint/RuboCop.)
+
+Useful node fields we use:
+- `ClassNode#constant_path` (the name) and `#superclass` (what it inherits from).
+- `ConstantReadNode#name` -> Symbol like `:User`.
+- `ConstantPathNode#parent` + `#name` -> reconstruct `"Accounts::User"`.
+- every node has `#location` with `#start_line` (free evidence line numbers).
+
+Tip: `puts Prism.parse(src).value.inspect` pretty-prints the whole tree — great
+for exploring before writing a visitor.
+
+### The Visitor pattern (`Prism::Visitor`)
+```ruby
+class ConstantVisitor < Prism::Visitor
+  def visit_class_node(node)   # called for every `class ... end`
+    # ...do something with node...
+    super                      # IMPORTANT: descends into the class body
+  end
+end
+Prism.parse(src).value.accept(visitor)   # start the walk
+```
+- Subclass `Prism::Visitor` and override `visit_<node_type>` for the nodes you
+  care about. Everything else is ignored automatically.
+- Calling `super` runs the default behaviour = visit the node's children. Forget
+  it and you won't descend into nested code.
+- Same shape as a Roslyn `CSharpSyntaxWalker` (C#).
+
+### Tracking "where am I?" with a namespace stack
+To know that a superclass reference lives inside `Billing::InvoiceProcessor`, the
+visitor pushes the name when it enters a module/class and pops when it leaves:
+```ruby
+def visit_module_node(node)
+  @namespace.push(name)   # entering
+  super                   # walk children (the inside)
+  @namespace.pop          # leaving
+end
+```
+`@namespace.join("::")` is then the current fully-qualified source name.
+
+### New Ruby syntax seen here
+- **`@variable`** = an *instance variable* (per-object state). No declaration; it
+  just exists once assigned. (C#: a private field.)
+- **`attr_reader :edges`** = auto-generates a getter method `edges`. (C#: a
+  read-only property.)
+- **`super()`** vs **`super`**: `super()` calls the parent method with NO args;
+  bare `super` forwards the same args it received. In `initialize` we use
+  `super()` because `Prism::Visitor#initialize` takes none.
+- **`def self.analyze(...)`** = a *class method* (called on the class itself:
+  `SourceAnalyzer.analyze(...)`), vs an instance method. (C#: a `static` method.)
+- **`case node; when Prism::ConstantReadNode ... end`** = pattern-matching on the
+  object's class. `when X` tests `X === node` (here: "is node an X?").
+- **Heredoc `<<~RUBY ... RUBY`** = a multi-line string literal; the `~` strips
+  leading indentation so the code stays readable. Used a lot in specs.
+
+### Graceful failure
+`Prism.parse` never raises on bad Ruby; it returns a result with `success? =>
+false` and an `errors` list (error-tolerant parsing). `SourceAnalyzer` checks
+`result.success?` and returns `[]` on failure, so one broken file can't crash a
+whole scan.

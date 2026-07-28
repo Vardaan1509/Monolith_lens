@@ -41,8 +41,11 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  # Uncomment to register a new dependency of your gem
-  # spec.add_dependency "example-gem", "~> 1.0"
+  # Prism is Ruby's official parser. It turns Ruby source code into the AST
+  # (abstract syntax tree) that our static analyzer walks. Pinned at patch level
+  # (~> 1.9.0 means ">= 1.9.0, < 1.10.0") because the visitor depends on specific
+  # AST node shapes, which can shift between minor versions.
+  spec.add_dependency "prism", "~> 1.9.0"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://guides.rubygems.org/make-your-own-gem/
