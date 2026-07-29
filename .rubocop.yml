@@ -1,3 +1,7 @@
+plugins:
+  - rubocop-performance
+  - rubocop-rspec
+
 AllCops:
   TargetRubyVersion: 3.2
   NewCops: enable
@@ -15,3 +19,12 @@ Metrics/BlockLength:
   Exclude:
     - "spec/**/*"
     - "*.gemspec"
+
+# Our tests favour "one scenario, several related assertions" over strict
+# one-assertion-per-example. Defaults (5 lines / 1 expectation) are too tight
+# for that style; these limits still catch genuinely bloated examples.
+RSpec/ExampleLength:
+  Max: 15
+
+RSpec/MultipleExpectations:
+  Max: 5

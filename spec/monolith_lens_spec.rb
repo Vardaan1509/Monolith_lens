@@ -2,6 +2,6 @@
 
 RSpec.describe MonolithLens do
   it "has a version number" do
-    expect(MonolithLens::VERSION).not_to be nil
+    expect(MonolithLens::VERSION).not_to be_nil
   end
 end

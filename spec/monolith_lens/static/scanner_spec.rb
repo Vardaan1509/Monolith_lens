@@ -11,26 +11,25 @@ RSpec.describe MonolithLens::Static::Scanner do
     path
   end
 
-  it "aggregates edges across all ruby files in a directory tree" do
+  def write_two_files(dir)
+    write(dir, "billing/invoice.rb", "module Billing\n  class Invoice < BaseRecord\n  end\nend\n")
+    write(dir, "accounts/user.rb", "module Accounts\n  class User\n    include Trackable\n  end\nend\n")
+  end
+
+  it "counts every ruby file found in the directory tree" do
     Dir.mktmpdir do |dir|
-      write(dir, "billing/invoice.rb", <<~RUBY)
-        module Billing
-          class Invoice < BaseRecord
-          end
-        end
-      RUBY
-      write(dir, "accounts/user.rb", <<~RUBY)
-        module Accounts
-          class User
-            include Trackable
-          end
-        end
-      RUBY
+      write_two_files(dir)
 
-      result = described_class.scan(dir)
+      expect(described_class.scan(dir).files_scanned).to eq(2)
+    end
+  end
 
-      expect(result.files_scanned).to eq(2)
-      pairs = result.edges.map { |edge| [edge.source, edge.target] }
+  it "aggregates edges found across all files into one list" do
+    Dir.mktmpdir do |dir|
+      write_two_files(dir)
+
+      pairs = described_class.scan(dir).edges.map { |edge| [edge.source, edge.target] }
+
       expect(pairs).to contain_exactly(
         ["Billing::Invoice", "BaseRecord"],
         ["Accounts::User", "Trackable"]

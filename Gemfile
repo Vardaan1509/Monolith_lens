@@ -8,6 +8,8 @@ gemspec
 gem "irb"
 gem "rake", "~> 13.0"
 
-gem "rspec", "~> 3.0"
+gem "rspec", "~> 3.13"
 
-gem "rubocop", "~> 1.21"
+gem "rubocop", "~> 1.88"
+gem "rubocop-performance", "~> 1.24"
+gem "rubocop-rspec", "~> 3.10"
