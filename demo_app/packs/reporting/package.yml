@@ -1,0 +1,6 @@
+# Reporting: aggregates data across domains. Depends on Accounts and Billing.
+# Billing also depends on Reporting, forming the intentional dependency cycle.
+enforce_dependencies: true
+dependencies:
+  - packs/accounts
+  - packs/billing

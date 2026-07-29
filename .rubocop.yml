@@ -6,6 +6,10 @@ AllCops:
   TargetRubyVersion: 3.2
   NewCops: enable
   SuggestExtensions: false
+  Exclude:
+    # The demo Rails app is a fixture we analyze, not part of the gem's own
+    # code. It has its own conventions and isn't linted by the gem's RuboCop.
+    - "demo_app/**/*"
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes

@@ -433,3 +433,55 @@ JSON.pretty_generate(edges.map { |e| { source: e.source, ... , evidence: e.evide
   then `JSON.parse` the captured string and assert on it.
 - `expect { ... }.to raise_error(SystemExit)` verifies the "path not found ->
   exit 1" path.
+
+---
+
+## Phase 3 (Slice 1) — Rails app + Packwerk
+
+### Rails in one paragraph
+Rails is a web framework. `rails new` scaffolds a conventional app: `app/`
+(your code: models, controllers, jobs, mailers), `config/` (settings), `db/`
+(database schema/migrations), `bin/` (helper scripts like `bin/rails`), and a
+`Gemfile`. It follows "convention over configuration" - if you name/place files
+the expected way, Rails wires them up automatically. We generated a lean app
+(skipped frontend/asset/deploy pieces we don't need) on SQLite.
+
+### ActiveRecord (the "models" part) - preview
+An ActiveRecord model is a Ruby class mapped to a database table. `class User <
+ApplicationRecord` gives you `User.find`, `User.create`, associations, etc.,
+without writing SQL. (C# analogy: an EF Core entity + DbSet, but far less
+ceremony.) We'll write real ones in Slice 2.
+
+### Autoloading (Zeitwerk)
+Rails auto-loads classes by filename: `app/models/billing/invoice.rb` must
+define `Billing::Invoice`. No `require` needed. We told Rails to also treat
+`packs/<pack>/app/<layer>` as autoload roots, so a domain's code lives inside
+its own pack but still follows the file-name-to-constant rule.
+
+### Packwerk (the whole reason Rails is here)
+Packwerk enforces boundaries between "packages" in a Rails monolith. Each
+package is a directory with a `package.yml` declaring:
+- `enforce_dependencies: true` - check references leaving this package.
+- `dependencies:` - the OTHER packages this one is allowed to use.
+`bin/packwerk check` reports references to packages you did NOT declare
+(a "boundary violation"). `bin/packwerk validate` checks the config itself.
+
+Key finding: **Packwerk requires the declared dependency graph to be acyclic** -
+`validate` fails if package A declares B and B declares A. So real cycles show
+up as *undeclared* references, not declarations. This shapes how we build the
+intentional cycle (see docs/PLAN.md).
+
+### Our four packages and their intended edges
+- accounts -> (nothing); the base domain.
+- billing -> accounts (declared, valid).
+- notifications -> accounts (declared). Will also reference Billing WITHOUT
+  declaring it -> intentional boundary violation.
+- reporting -> accounts, billing (declared, valid). Billing will reference
+  Reporting back WITHOUT declaring it -> undeclared reference that forms a cycle.
+
+### Housekeeping
+- `demo_app/` is a fixture, not gem code: excluded from the gem's `.rubocop.yml`
+  and from `spec.files` in the gemspec (so `gem build` won't bundle a whole
+  Rails app).
+- `--skip-git` also skipped the Rails `.gitignore`; added one so logs, the
+  SQLite DB, and tmp files are not committed.

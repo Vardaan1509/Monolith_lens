@@ -1,0 +1,6 @@
+# Notifications: emails and alerts. Declares only Accounts. It deliberately does
+# NOT declare Billing, yet its code will reference Billing::Invoice - an
+# intentional static boundary violation for MonolithLens/Packwerk to catch.
+enforce_dependencies: true
+dependencies:
+  - packs/accounts

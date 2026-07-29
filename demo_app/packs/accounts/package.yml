@@ -1,0 +1,3 @@
+# Accounts: the base domain (users). Depends on nothing.
+enforce_dependencies: true
+dependencies: []

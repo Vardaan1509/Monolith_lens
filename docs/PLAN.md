@@ -42,11 +42,25 @@ Run with: `bundle exec exe/monolith-lens scan <path>`
 
 **REVIEW CHECKPOINT: this is the planned stop-and-review point.**
 
-## Phase 3 — Demo Rails App (4 domains) ⬜
-Accounts, Billing, Notifications, Reporting. Rails 8.1.3 + SQLite. Deliberately
-contains: one valid cross-package dependency, one static boundary violation,
-one runtime-only hidden dependency, one circular dependency. Exists to prove
-the analyzer works against something real — not the main deliverable itself.
+## Phase 3 — Demo Rails App (4 domains) 🟡
+Accounts, Billing, Notifications, Reporting. Rails 8.1.3 + SQLite. Lives in
+`demo_app/` (a fixture we analyze, excluded from the gem's RuboCop + packaging).
+
+Slice 1 (bootstrap) ✅
+- Lean Rails app generated (no frontend/deploy cruft), boots on SQLite.
+- rspec-rails + packwerk installed and initialized.
+- Four packages under `packs/*` with `package.yml` boundary declarations;
+  autoload configured so `packs/billing/app/models/billing/invoice.rb` maps to
+  `Billing::Invoice`. `packwerk validate` passes.
+
+Slice 2 (fill in domains) ⬜ — models/services/jobs + the four intentional
+scenarios (valid dep, boundary violation, runtime-hidden dep, cycle) + tests.
+Slice 3 (verify) ⬜ — demo tests green; MonolithLens scan produces a real graph.
+
+Design note: Packwerk `validate` REJECTS declared cycles (the declared graph
+must be acyclic). So the intentional cycle is created via an *undeclared* code
+reference (billing -> reporting) plus the declared reporting -> billing. Packwerk
+reports it only as an undeclared reference; MonolithLens surfaces it as a cycle.
 
 ## Phase 4 — Packwerk Integration ⬜
 Read `package.yml` files directly (YAML), shell out to `packwerk check` safely

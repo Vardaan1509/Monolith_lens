@@ -1,0 +1,8 @@
+# Billing: invoices and payments. Legitimately depends only on Accounts (needs
+# a user to bill). It does NOT declare Reporting - but its code will reference
+# Reporting anyway (an undeclared reference). Combined with Reporting declaring
+# Billing, that forms an intentional dependency cycle: Packwerk can only report
+# it as an undeclared reference, while MonolithLens surfaces it as a cycle.
+enforce_dependencies: true
+dependencies:
+  - packs/accounts
