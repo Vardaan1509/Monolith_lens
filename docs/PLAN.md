@@ -53,9 +53,18 @@ Slice 1 (bootstrap) ✅
   autoload configured so `packs/billing/app/models/billing/invoice.rb` maps to
   `Billing::Invoice`. `packwerk validate` passes.
 
-Slice 2 (fill in domains) ⬜ — models/services/jobs + the four intentional
-scenarios (valid dep, boundary violation, runtime-hidden dep, cycle) + tests.
-Slice 3 (verify) ⬜ — demo tests green; MonolithLens scan produces a real graph.
+Slice 2 (fill in domains) ✅ — models, service objects, and a job across the
+four packs, with all four intentional scenarios wired and 10 passing specs:
+- Valid declared deps: billing/reporting/notifications -> accounts, reporting -> billing.
+- Boundary violation: Notifications::InvoiceAlert references Billing::Invoice
+  (undeclared). Packwerk reports 1 of its 2 offenses here.
+- Cycle: Billing::InvoiceProcessor references Reporting::RevenueSummary
+  (undeclared) while reporting declares billing. Packwerk's other offense.
+- Hidden runtime dep: Billing::InvoiceProcessor enqueues Notifications::ReceiptJob
+  via a string ("Notifications::ReceiptJob".constantize) - invisible to Packwerk
+  and static analysis, only observable at runtime.
+Slice 3 (verify) ⬜ — MonolithLens scan produces a real graph; confirm it sees
+the static edges (incl. the cycle) but NOT the hidden runtime dep yet.
 
 Design note: Packwerk `validate` REJECTS declared cycles (the declared graph
 must be acyclic). So the intentional cycle is created via an *undeclared* code

@@ -47,4 +47,8 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions.
   config.action_controller.raise_on_missing_callback_actions = true
+
+  # Enqueue jobs into an inspectable in-memory list instead of running them,
+  # so tests can assert on enqueued jobs (and run them with perform_enqueued_jobs).
+  config.active_job.queue_adapter = :test
 end

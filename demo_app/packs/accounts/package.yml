@@ -1,3 +1,5 @@
-# Accounts: the base domain (users). Depends on nothing.
+# Accounts: the base domain (users). Depends only on the root package ".",
+# which holds framework base classes like ApplicationRecord.
 enforce_dependencies: true
-dependencies: []
+dependencies:
+  - "."

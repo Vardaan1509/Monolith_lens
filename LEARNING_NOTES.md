@@ -485,3 +485,51 @@ intentional cycle (see docs/PLAN.md).
   Rails app).
 - `--skip-git` also skipped the Rails `.gitignore`; added one so logs, the
   SQLite DB, and tmp files are not committed.
+
+---
+
+## Phase 3 (Slice 2) — Rails building blocks
+
+### Migrations
+A migration is a versioned instruction for changing the database schema.
+`bin/rails generate migration CreateUsers name:string email:string` writes a
+timestamped file; `bin/rails db:migrate` runs it and updates `db/schema.rb`
+(the current schema, which IS committed; the .sqlite3 file is NOT).
+
+### ActiveRecord models
+`class User < ApplicationRecord` maps a Ruby class to a DB table (namespaced
+`Accounts::User` maps to the `users` table by default). You get `create!`,
+`find`, `where(...).sum(...)`, etc. without writing SQL.
+- **Validations**: `validates :email, presence: true` - checked before save;
+  `record.valid?` / `create!` (bang raises on failure).
+- **Callbacks**: `before_validation :normalize_email` runs your method
+  automatically at that point in the lifecycle. Powerful but "spooky action at
+  a distance" - a reason MonolithLens cares about hidden behaviour.
+
+### Service objects
+Plain Ruby classes with one job (e.g. `Billing::InvoiceProcessor#call`). Not a
+Rails feature - just a convention for business logic that does not belong on a
+model or controller. Keeps models thin.
+
+### Background jobs (ActiveJob)
+`class ReceiptJob < ApplicationJob` with a `perform(...)` method. Enqueue with
+`ReceiptJob.perform_later(args)` - it runs asynchronously (later, on a queue).
+- In tests we set `queue_adapter = :test`, which records enqueued jobs instead
+  of running them, so we can assert on them.
+- `have_enqueued_job(ReceiptJob).with(id)` - matcher: "this job got enqueued".
+- `perform_enqueued_jobs { ... }` - actually run enqueued jobs inline.
+
+### How the four scenarios map to code
+- Valid dep: `Accounts::User.find` inside billing (billing declares accounts).
+- Boundary violation: `Billing::Invoice.find` inside Notifications::InvoiceAlert
+  (notifications does NOT declare billing).
+- Cycle: `Reporting::RevenueSummary.record` inside Billing::InvoiceProcessor
+  (billing does NOT declare reporting; reporting declares billing).
+- Hidden runtime dep: `"Notifications::ReceiptJob".constantize.perform_later`
+  - a string, not a constant, so static tools (Packwerk, our visitor) can't see
+  it. This is the whole reason runtime tracing (Phase 5) exists.
+
+### Base classes and the root package
+`ApplicationRecord`/`ApplicationJob` live in the root package ".". Packs that
+define models/jobs must declare a dependency on "." or Packwerk flags the base
+class reference as a violation (framework noise, not a real boundary issue).
