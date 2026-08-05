@@ -2,7 +2,7 @@
 
 RSpec.describe MonolithLens::Static::SourceAnalyzer do
   def analyze(source, source_file: "test.rb")
-    described_class.analyze(source, source_file: source_file)
+    described_class.analyze(source, source_file: source_file).edges
   end
 
   it "records a class inheritance edge with a fully-qualified source" do
@@ -188,5 +188,18 @@ RSpec.describe MonolithLens::Static::SourceAnalyzer do
 
     targets = analyze(source).map(&:target)
     expect(targets).to contain_exactly("Accounts::User", "Notifications::Mailer")
+  end
+
+  it "records the constants (classes and modules) defined in the source" do
+    source = <<~RUBY
+      module Billing
+        class Invoice
+        end
+      end
+    RUBY
+
+    definitions = described_class.analyze(source, source_file: "billing/invoice.rb").definitions
+
+    expect(definitions.map(&:constant)).to contain_exactly("Billing", "Billing::Invoice")
   end
 end

@@ -533,3 +533,52 @@ model or controller. Keeps models thin.
 `ApplicationRecord`/`ApplicationJob` live in the root package ".". Packs that
 define models/jobs must declare a dependency on "." or Packwerk flags the base
 class reference as a violation (framework noise, not a real boundary issue).
+
+---
+
+## Phase 4 — Packwerk integration (classifying edges)
+
+### Reading package.yml
+`YAML.safe_load_file(path)` parses a YAML file into Ruby hashes/arrays (the
+"safe" variant refuses dangerous types). A package's name is its directory
+path relative to the app root ("." for the root package). We read each
+package's `dependencies` and `enforce_dependencies` flag.
+
+### Resolving a constant to its package
+An edge only knows the target's NAME (e.g. "Billing::Invoice"), not its file.
+So the scan now also collects `definitions` (constant -> file). We build a
+`constant => file` index, then map file -> owning package (nearest ancestor
+package, longest path wins).
+
+### enforce_dependencies matters
+The root package has `enforce_dependencies: false`, so references FROM root
+code (specs, config) are never violations - matching Packwerk. A cross-package
+reference is only a violation when the source package enforces AND didn't
+declare the target.
+
+### The five classifications
+- :external - target isn't in any package (a gem/framework base class)
+- :internal - same package
+- :unchecked - source doesn't enforce (e.g. root)
+- :declared - cross-package and declared (fine)
+- :boundary_violation - cross-package, enforced, undeclared
+
+### Cycle detection with TSort
+`TSort` is a Ruby stdlib module for topological sorting. Mix it in, define
+`tsort_each_node` and `tsort_each_child`, and you get
+`strongly_connected_components` for free. A strongly connected component with
+more than one node IS a dependency cycle. This is the key differentiator:
+Packwerk checks one reference at a time and can only say "undeclared
+reference"; by building the whole package graph we can say "these packages
+form a cycle".
+
+### New Ruby seen here
+- `Data.define(...)` nested inside a class (`PackageAnalysis::Result`).
+- `Hash.new { |h, k| h[k] = [] }` - a Hash whose default for a missing key is a
+  fresh empty array (handy for building adjacency lists).
+- `each_with_object(Hash.new(0)) { ... }` - fold a collection into an
+  accumulator; `Hash.new(0)` defaults missing keys to 0 (a counter).
+- Anonymous block forwarding: `def tsort_each_node(&) ... each(&) end` passes
+  the block through without naming it (Ruby 3.1+).
+- `include TSort` - a *mixin*: pulls a module's methods into the class (this is
+  what `include` does, and exactly the kind of dependency our analyzer detects).

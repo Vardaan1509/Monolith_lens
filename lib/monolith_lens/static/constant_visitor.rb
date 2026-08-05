@@ -4,33 +4,35 @@ require "prism"
 
 module MonolithLens
   module Static
-    # Walks a Prism AST and collects dependency Edges from a single Ruby file.
+    # Walks a Prism AST and collects, from a single Ruby file:
+    # - edges: the dependencies it references (inheritance, mixins, constants)
+    # - definitions: the constants (classes/modules) it defines
     #
-    # Detects class inheritance, mixins (include/prepend/extend), and
-    # qualified constant references (Foo::Bar). Bare constants like String
-    # or MAX_SIZE are skipped for now - telling app code apart from a Ruby
-    # built-in needs a whole-repo symbol table we don't have yet.
+    # Bare constants like String or MAX_SIZE are skipped as reference targets
+    # for now - telling app code apart from a Ruby built-in needs a whole-repo
+    # symbol table we don't have yet.
     #
-    # Constant references are tagged by how confident we are: used as a call
-    # receiver (Foo::Bar.find) is stronger evidence than used as a plain
-    # value (x = Foo::Bar). Neither is dropped; confidence scoring decides
-    # later how much to trust each one.
+    # Constant references are tagged by confidence: used as a call receiver
+    # (Foo::Bar.find) is stronger evidence than used as a plain value
+    # (x = Foo::Bar). Neither is dropped; confidence scoring decides later.
     class ConstantVisitor < Prism::Visitor
       MIXIN_METHODS = %i[include prepend extend].freeze
 
-      attr_reader :edges
+      attr_reader :edges, :definitions
 
       def initialize(source_file:)
         super()
         @source_file = source_file
         @namespace = []
         @edges = []
+        @definitions = []
         @handled = Set.new
       end
 
       def visit_module_node(node)
         mark_handled(node.constant_path)
         @namespace.push(ConstantName.call(node.constant_path))
+        record_definition(node)
         super
         @namespace.pop
       end
@@ -39,6 +41,7 @@ module MonolithLens
         mark_handled(node.constant_path)
         mark_handled(node.superclass)
         @namespace.push(ConstantName.call(node.constant_path))
+        record_definition(node)
         record_inheritance(node.superclass) if node.superclass
         super
         @namespace.pop
@@ -68,6 +71,14 @@ module MonolithLens
 
       def qualified_constant?(node)
         node.is_a?(Prism::ConstantPathNode)
+      end
+
+      def record_definition(node)
+        @definitions << Definition.new(
+          constant: current_source,
+          source_file: @source_file,
+          line: node.location.start_line
+        )
       end
 
       def record_inheritance(superclass_node)

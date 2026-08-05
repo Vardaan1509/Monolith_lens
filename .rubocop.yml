@@ -46,3 +46,8 @@ RSpec/SpecFilePathFormat:
 RSpec/DescribeMethod:
   Exclude:
     - "spec/integration/**/*"
+
+# A Prism visitor legitimately has many small methods (one per node type plus
+# helpers); 120 gives reasonable headroom over the 100 default.
+Metrics/ClassLength:
+  Max: 120

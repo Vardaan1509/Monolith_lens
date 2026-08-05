@@ -77,10 +77,24 @@ must be acyclic). So the intentional cycle is created via an *undeclared* code
 reference (billing -> reporting) plus the declared reporting -> billing. Packwerk
 reports it only as an undeclared reference; MonolithLens surfaces it as a cycle.
 
-## Phase 4 — Packwerk Integration ⬜
-Read `package.yml` files directly (YAML), shell out to `packwerk check` safely
-(array args, no string interpolation), classify edges as declared-dependency
-or boundary-violation.
+## Phase 4 — Packwerk Integration ✅
+Reads `package.yml` files directly (YAML) and classifies every edge itself,
+rather than shelling out to `packwerk check` (our own classification matches
+Packwerk's results and gives us the package graph for cycle detection).
+- `Packwerk::Package` / `PackageSet` - read packages, ownership, declares?
+- Scan now also collects `definitions` (constant -> file), so a target
+  constant resolves to its owning package.
+- `Analysis::EdgeClassifier` - each edge -> :internal / :declared /
+  :boundary_violation / :unchecked / :external (respects enforce_dependencies).
+- `Analysis::PackageGraph` (stdlib TSort) - detects package cycles (SCCs).
+- `Analysis::PackageAnalysis` - orchestrates scan + packages + classify + cycles.
+- CLI `monolith-lens boundaries CODE_PATH --app-root APP` - JSON report.
+Verified on the demo app: 2 boundary violations (matching Packwerk) PLUS the
+billing<->reporting cycle Packwerk can't name. Integration spec locks it in.
+41 examples, RuboCop clean.
+
+Deferred: optionally shelling out to `packwerk check` as an external cross-check
+(our own classification already matches it, so not needed for the MVP).
 
 ## Phase 5 — Runtime Tracing ⬜
 ActiveSupport::Notifications-based instrumentation adapter in the demo app

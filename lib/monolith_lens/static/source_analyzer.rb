@@ -5,8 +5,9 @@ require "prism"
 module MonolithLens
   module Static
     # Parses Ruby source with Prism and walks it with ConstantVisitor to
-    # collect dependency Edges. Never executes the analyzed code. Returns
-    # no edges (instead of raising) if the source has a syntax error.
+    # collect dependency edges and constant definitions. Never executes the
+    # analyzed code. Returns an empty FileAnalysis (instead of raising) if the
+    # source has a syntax error.
     class SourceAnalyzer
       def self.analyze(source, source_file:)
         new(source, source_file: source_file).analyze
@@ -19,11 +20,11 @@ module MonolithLens
 
       def analyze
         result = Prism.parse(@source)
-        return [] unless result.success?
+        return FileAnalysis.new(edges: [], definitions: []) unless result.success?
 
         visitor = ConstantVisitor.new(source_file: @source_file)
         result.value.accept(visitor)
-        visitor.edges
+        FileAnalysis.new(edges: visitor.edges, definitions: visitor.definitions)
       end
     end
   end

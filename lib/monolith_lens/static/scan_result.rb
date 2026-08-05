@@ -2,7 +2,8 @@
 
 module MonolithLens
   module Static
-    # Result of scanning a path: files analyzed and edges found.
-    ScanResult = Data.define(:files_scanned, :edges)
+    # Result of scanning a path: files analyzed, edges found, and the
+    # constants defined across all files (used to resolve targets to packages).
+    ScanResult = Data.define(:files_scanned, :edges, :definitions)
   end
 end
