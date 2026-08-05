@@ -96,10 +96,24 @@ billing<->reporting cycle Packwerk can't name. Integration spec locks it in.
 Deferred: optionally shelling out to `packwerk check` as an external cross-check
 (our own classification already matches it, so not needed for the MVP).
 
-## Phase 5 — Runtime Tracing ⬜
-ActiveSupport::Notifications-based instrumentation adapter in the demo app
-(SQL, ActiveJob enqueue/perform, one custom service-call event).
-`monolith-lens trace -- bundle exec rspec` records a runtime trace.
+## Phase 5 — Runtime Tracing ✅
+An opt-in tracer subscribes to ActiveSupport::Notifications while tests run and
+records observed dependencies to a JSONL trace; MonolithLens ingests that into
+runtime edges.
+- `Runtime::Tracer` (in the gem) subscribes to `enqueue.active_job`, uses the
+  call stack to attribute the source file, writes JSONL. Wired into the demo's
+  rails_helper, gated by the MONOLITH_LENS_TRACE env var (off by default).
+- `Runtime::TraceIngester` reads the trace and builds runtime Edges (kind:
+  :runtime), resolving each source file to its most specific defined constant.
+- CLI `monolith-lens trace -- <command>` runs a command with tracing on (safe
+  array-form subprocess, no shell injection).
+- PROVEN: tracing the demo suite captures billing -> Notifications::ReceiptJob
+  (source line 28), the string-based dependency static analysis and Packwerk
+  cannot see. Locked in by an integration spec. 46 examples, RuboCop clean.
+
+Scope note: job-enqueue tracing is implemented (enough to prove the hidden
+dependency). SQL / perform / custom service events are easy extensions of the
+same subscribe mechanism, deferred to keep the phase focused.
 
 ## Phase 6 — Evidence Merging + Confidence Scoring ⬜
 Joint design (ADR) for the confidence formula, then implementation. Classifies

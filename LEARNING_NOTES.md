@@ -582,3 +582,51 @@ form a cycle".
   the block through without naming it (Ruby 3.1+).
 - `include TSort` - a *mixin*: pulls a module's methods into the class (this is
   what `include` does, and exactly the kind of dependency our analyzer detects).
+
+---
+
+## Phase 5 — Runtime tracing
+
+### ActiveSupport::Notifications
+Rails' built-in pub/sub for instrumentation. Rails "instruments" events (like
+`enqueue.active_job`, `sql.active_record`) and you subscribe to observe them:
+```ruby
+ActiveSupport::Notifications.subscribe("enqueue.active_job") do |event|
+  event.payload[:job]   # the job that was enqueued
+end
+```
+This is the safe, Rails-native way to watch what an app does at runtime,
+without patching methods.
+
+### Attributing the source via the call stack
+The event tells us WHAT happened (a job was enqueued) but not WHO did it.
+`caller_locations` returns the current call stack; we find the nearest frame
+inside the app (and not a test file) - that's the code that triggered it.
+That's how we recover that `billing` enqueued the notifications job.
+
+### Opt-in and safe
+Tracing is off unless `MONOLITH_LENS_TRACE` is set (never in production). The
+`trace` CLI command runs your test command with that env var set, using
+`system(env, *command)` - the array form runs without a shell, so there's no
+command-injection risk.
+
+### Trace format and ingestion
+The tracer appends one JSON object per line (JSONL) to a trace file. The
+`TraceIngester` reads it back and turns each event into a runtime Edge, tagged
+`kind: :runtime`, resolving the source file to the most specific constant
+defined there (using the scan's definitions).
+
+### The payoff
+`"Notifications::ReceiptJob".constantize.perform_later` is a STRING at the
+point static analysis reads it - invisible to Prism and to Packwerk. Running
+the tests and watching `enqueue.active_job` fire recovers the real
+`Billing::InvoiceProcessor -> Notifications::ReceiptJob` dependency. Static and
+runtime are complementary: neither alone sees the whole picture. Phase 6 merges
+them.
+
+### New Ruby seen here
+- `caller_locations` - the call stack as frame objects (`.path`, `.lineno`).
+- `at_exit { ... }` - register cleanup to run when the process exits.
+- `system(env_hash, *command_array)` - run a subprocess with extra env vars,
+  no shell (safe).
+- `group_by(&:source_file)` - index a list into a Hash keyed by an attribute.

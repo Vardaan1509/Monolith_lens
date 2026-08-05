@@ -21,6 +21,21 @@ module MonolithLens
       puts JSON.pretty_generate(edges_as_json(result.edges))
     end
 
+    desc "trace -- COMMAND", "Run COMMAND (e.g. your test suite) with runtime tracing enabled"
+    method_option :output, type: :string, default: ".monolith_lens/trace.jsonl",
+                           desc: "Trace output path, relative to the command's working directory"
+    def trace(*command)
+      command = command.drop(1) if command.first == "--"
+      if command.empty?
+        warn "monolith-lens: provide a command, e.g. monolith-lens trace -- bundle exec rspec"
+        exit 1
+      end
+
+      # Array form (no shell) to avoid command injection; the env var switches
+      # the app's opt-in tracer on.
+      exit(system({ "MONOLITH_LENS_TRACE" => options[:output] }, *command) ? 0 : 1)
+    end
+
     desc "boundaries CODE_PATH", "Classify dependencies against Packwerk packages; report violations and cycles"
     method_option :app_root, type: :string,
                              desc: "App root containing package.yml files (defaults to CODE_PATH)"

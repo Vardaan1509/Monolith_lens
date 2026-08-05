@@ -10,6 +10,17 @@ abort("The Rails environment is running in production mode!") if Rails.env.produ
 require 'rspec/rails'
 # Add additional requires below this line. Rails is not loaded until this point!
 
+# MonolithLens runtime tracing: opt-in via the MONOLITH_LENS_TRACE env var
+# (set by `monolith-lens trace`). Records observed dependencies while the suite
+# runs. Off by default, so ordinary test runs are unaffected.
+if ENV["MONOLITH_LENS_TRACE"]
+  require_relative "../../lib/monolith_lens/runtime/tracer"
+  MonolithLens::Runtime::Tracer.start(
+    output_path: File.expand_path(ENV.fetch("MONOLITH_LENS_TRACE"), Rails.root),
+    app_root: Rails.root.to_s
+  )
+end
+
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are
 # run as spec files by default. This means that files in spec/support that end

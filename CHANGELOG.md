@@ -16,6 +16,12 @@
   (`Analysis::EdgeClassifier`).
 - Package-level dependency cycle detection via `TSort` (`Analysis::PackageGraph`).
 - `monolith-lens boundaries` CLI command reporting violations and cycles as JSON.
+- Opt-in runtime tracer (`Runtime::Tracer`) using ActiveSupport::Notifications
+  to record observed dependencies (e.g. background-job enqueues) to a JSONL
+  trace, with call-stack source attribution.
+- `Runtime::TraceIngester` converting a trace into runtime edges, recovering
+  string-based dependencies that static analysis cannot see.
+- `monolith-lens trace -- <command>` CLI command to run a suite with tracing on.
 
 ## [0.1.0] - 2026-07-26
 

@@ -1,0 +1,1 @@
+{"type":"job_enqueue","source_file":"packs/billing/app/services/billing/invoice_processor.rb","source_line":28,"target":"Notifications::ReceiptJob"}
