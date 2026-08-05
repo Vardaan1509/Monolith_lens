@@ -63,8 +63,14 @@ four packs, with all four intentional scenarios wired and 10 passing specs:
 - Hidden runtime dep: Billing::InvoiceProcessor enqueues Notifications::ReceiptJob
   via a string ("Notifications::ReceiptJob".constantize) - invisible to Packwerk
   and static analysis, only observable at runtime.
-Slice 3 (verify) ⬜ — MonolithLens scan produces a real graph; confirm it sees
-the static edges (incl. the cycle) but NOT the hidden runtime dep yet.
+Slice 3 (verify) ✅ — MonolithLens scan of demo_app/packs produces 9 edges:
+all valid cross-domain deps, the boundary-violating reference, and BOTH halves
+of the billing<->reporting cycle. It does NOT produce a billing->notifications
+edge (the string-based job dependency is invisible to static analysis) - the
+core thesis, demonstrated. Locked in as an integration spec
+(spec/integration/demo_app_scan_spec.rb). Main gem: 31 examples, RuboCop clean.
+
+Phase 3 (demo Rails app) is COMPLETE.
 
 Design note: Packwerk `validate` REJECTS declared cycles (the declared graph
 must be acyclic). So the intentional cycle is created via an *undeclared* code

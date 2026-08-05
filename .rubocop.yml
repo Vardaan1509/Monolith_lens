@@ -32,3 +32,17 @@ RSpec/ExampleLength:
 
 RSpec/MultipleExpectations:
   Max: 5
+
+# Integration specs scan the real demo app; they are feature-style (described
+# by a string, not a class), so the class-name/path conventions don't apply.
+RSpec/DescribeClass:
+  Exclude:
+    - "spec/integration/**/*"
+
+RSpec/SpecFilePathFormat:
+  Exclude:
+    - "spec/integration/**/*"
+
+RSpec/DescribeMethod:
+  Exclude:
+    - "spec/integration/**/*"
