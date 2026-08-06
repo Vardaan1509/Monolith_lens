@@ -18,6 +18,9 @@ require_relative "monolith_lens/analysis/package_graph"
 require_relative "monolith_lens/analysis/package_analysis"
 require_relative "monolith_lens/analysis/merged_edge"
 require_relative "monolith_lens/analysis/evidence_merger"
+require_relative "monolith_lens/analysis/impact_report"
+require_relative "monolith_lens/analysis/impact_analyzer"
+require_relative "monolith_lens/git/diff_analyzer"
 require_relative "monolith_lens/runtime/trace_ingester"
 
 module MonolithLens

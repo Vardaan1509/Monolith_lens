@@ -36,6 +36,18 @@ module MonolithLens
       exit(system({ "MONOLITH_LENS_TRACE" => options[:output] }, *command) ? 0 : 1)
     end
 
+    desc "impact", "Show the blast radius of a git diff: affected code and recommended tests"
+    method_option :repo, type: :string, default: ".", desc: "Git repository root"
+    method_option :base, type: :string, default: "main", desc: "Base git ref"
+    method_option :head, type: :string, default: "HEAD", desc: "Head git ref"
+    method_option :code, type: :string, desc: "Code path to scan (defaults to repo)"
+    method_option :specs, type: :string, desc: "Directory to search for *_spec.rb (defaults to repo)"
+    def impact
+      changed, report = compute_impact
+      warn impact_summary(changed, report)
+      puts JSON.pretty_generate(impact_json(changed, report))
+    end
+
     desc "boundaries CODE_PATH", "Classify dependencies against Packwerk packages; report violations and cycles"
     method_option :app_root, type: :string,
                              desc: "App root containing package.yml files (defaults to CODE_PATH)"
@@ -98,6 +110,35 @@ module MonolithLens
       violations = result.classified_edges.count { |ce| ce.classification == :boundary_violation }
       "Analyzed #{result.classified_edges.length} edge(s); " \
         "#{violations} violation(s), #{result.cycles.length} cycle(s)."
+    end
+
+    def compute_impact
+      repo = options[:repo]
+      changed = MonolithLens::Git::DiffAnalyzer.changed_ruby_files(
+        repo: repo, base: options[:base], head: options[:head]
+      )
+      scan = MonolithLens::Static::Scanner.scan(options[:code] || repo, base: repo)
+      spec_files = Dir.glob(File.join(options[:specs] || repo, "**", "*_spec.rb"))
+      report = MonolithLens::Analysis::ImpactAnalyzer.call(
+        scan: scan, changed_files: changed, spec_files: spec_files
+      )
+      [changed, report]
+    end
+
+    def impact_json(changed_files, report)
+      {
+        changed_files: changed_files,
+        changed: report.changed,
+        directly_affected: report.directly_affected,
+        transitively_affected: report.transitively_affected,
+        recommended_tests: report.recommended_tests
+      }
+    end
+
+    def impact_summary(changed_files, report)
+      "#{changed_files.length} changed file(s); #{report.changed.length} changed constant(s), " \
+        "#{report.directly_affected.length} direct, #{report.transitively_affected.length} transitive; " \
+        "#{report.recommended_tests.length} test(s) recommended."
     end
   end
 end
