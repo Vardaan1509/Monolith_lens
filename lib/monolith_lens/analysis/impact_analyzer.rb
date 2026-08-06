@@ -5,7 +5,14 @@ module MonolithLens
     # Given a scan and a set of changed files, computes the change's blast
     # radius by walking the REVERSE dependency graph (who depends on the
     # changed code), then recommends tests by file-name convention.
+    #
+    # The blast radius SCORE weights direct dependents more heavily than
+    # transitive ones, because a direct dependent is more likely to actually
+    # break: score = (direct * 3) + (transitive * 1).
     class ImpactAnalyzer
+      DIRECT_WEIGHT = 3
+      TRANSITIVE_WEIGHT = 1
+
       def self.call(scan:, changed_files:, spec_files:)
         new(scan: scan, spec_files: spec_files).call(changed_files)
       end
@@ -26,11 +33,16 @@ module MonolithLens
           changed: changed,
           directly_affected: direct,
           transitively_affected: transitive,
+          blast_radius: blast_radius_score(direct, transitive),
           recommended_tests: recommend_tests(changed + direct + transitive)
         )
       end
 
       private
+
+      def blast_radius_score(direct, transitive)
+        (direct.length * DIRECT_WEIGHT) + (transitive.length * TRANSITIVE_WEIGHT)
+      end
 
       # target => [sources that depend on it]. If target changes, sources break.
       def build_reverse(edges)

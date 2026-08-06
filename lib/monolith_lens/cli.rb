@@ -128,6 +128,7 @@ module MonolithLens
     def impact_json(changed_files, report)
       {
         changed_files: changed_files,
+        blast_radius: report.blast_radius,
         changed: report.changed,
         directly_affected: report.directly_affected,
         transitively_affected: report.transitively_affected,
@@ -136,8 +137,9 @@ module MonolithLens
     end
 
     def impact_summary(changed_files, report)
-      "#{changed_files.length} changed file(s); #{report.changed.length} changed constant(s), " \
-        "#{report.directly_affected.length} direct, #{report.transitively_affected.length} transitive; " \
+      "#{changed_files.length} changed file(s); blast radius score #{report.blast_radius} " \
+        "(#{report.changed.length} changed, #{report.directly_affected.length} direct, " \
+        "#{report.transitively_affected.length} transitive); " \
         "#{report.recommended_tests.length} test(s) recommended."
     end
   end

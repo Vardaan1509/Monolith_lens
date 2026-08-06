@@ -33,4 +33,9 @@ RSpec.describe "Impact analysis on the demo app" do
 
     expect(recommended).to include("invoice_alert_spec.rb", "revenue_summary_spec.rb")
   end
+
+  it "reports a blast radius score weighting direct impact 3x over transitive" do
+    # 2 direct (InvoiceAlert, RevenueSummary) * 3 + 1 transitive (InvoiceProcessor) * 1
+    expect(report.blast_radius).to eq(7)
+  end
 end
