@@ -143,6 +143,13 @@ maps those files to the constants they define, then walks the *reverse*
 dependency graph outward: direct dependents, then transitive dependents,
 breadth-first, until nothing new is found.
 
+It also produces a single **blast radius score** — a weighted count of the
+affected code, where direct dependents count 3× and transitive dependents 1×,
+because a direct dependent is more likely to actually break. It's a quick
+at-a-glance sense of "how risky is this change" that sits at the top of the
+impact report (e.g. changing `Billing::Invoice` in the demo app scores 7:
+two direct dependents × 3, plus one transitive × 1).
+
 ## How test recommendations are generated
 
 For every affected constant, MonolithLens looks up its source file and
