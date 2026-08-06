@@ -9,3 +9,11 @@
 
 # rspec failure tracking
 .rspec_status
+
+# Internal working docs (planning/learning notes) - kept locally, not published.
+docs/PLAN.md
+LEARNING_NOTES.md
+
+# Stray logs/traces that might get generated at the repo root during dev/testing.
+*.log
+.monolith_lens/
