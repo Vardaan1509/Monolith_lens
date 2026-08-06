@@ -45,4 +45,14 @@ RSpec.describe MonolithLens::Analysis::ImpactAnalyzer do
     expect(report.recommended_tests.map { |rec| rec[:spec] })
       .to contain_exactly("spec/billing/invoice_spec.rb", "spec/reporting/summary_spec.rb")
   end
+
+  it "returns an empty report for an empty diff" do
+    report = described_class.call(
+      scan: scan(edges: [], definitions: []), changed_files: [], spec_files: []
+    )
+
+    expect(report.changed).to be_empty
+    expect(report.directly_affected).to be_empty
+    expect(report.recommended_tests).to be_empty
+  end
 end
