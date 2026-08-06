@@ -226,6 +226,32 @@ Running `monolith-lens boundaries` against `demo_app/packs` produces exactly:
 These numbers are reproduced by the commands above and locked in by the
 integration specs under `spec/integration/`. Nothing here is estimated.
 
+## Validated against Shopify's own Packwerk fixtures
+
+To sanity-check the static scanner against real-world Ruby rather than only
+the bundled demo app, I ran `monolith-lens scan` against the `skeleton` and
+`minimal` fixtures from
+[Shopify/packwerk](https://github.com/Shopify/packwerk)'s own test suite
+(MIT-licensed; used here for local testing only, not vendored into this
+repo). Those fixtures exercise real Sorbet `# typed:` annotations, classes
+reopened across multiple files, deeply nested namespaces
+(`Sales::Order::Error`), and Shopify's own `components/<name>/app/{models,
+internal,public}` package layout — and the scanner parsed all of it cleanly
+with zero crashes.
+
+The fixtures themselves define constants without referencing each other (by
+design — Packwerk's own tests inject references at the test-code level, not
+in the fixtures), so the correct scan result is genuinely 0 edges. To confirm
+that's a fact about the fixtures and not a bug in MonolithLens, I reproduced
+Shopify's exact package layout with one added cross-package reference
+(`Sales::Order` calling `Timeline::Event`) and confirmed the scanner found it
+and attributed it correctly:
+
+```
+Scanned 2 file(s); found 1 edge(s).
+Sales::Order -> Timeline::Event (constant_reference, line 5)
+```
+
 ## Security
 
 - The static analyzer never executes analyzed code.
