@@ -5,12 +5,12 @@
 MonolithLens is a static + runtime dependency analyzer for modular Rails
 monoliths. It reads your source code, reads your [Packwerk](https://github.com/Shopify/packwerk)
 package boundaries, and (optionally) observes what your test suite actually
-does at runtime — then combines all three to answer a question none of them
+does at runtime, then combines all three to answer a question none of them
 can answer alone: given a Git diff, what breaks, how confident should you be,
 and which tests are worth running.
 
 It ships with a small, deliberately modular demo Rails application used to
-prove every claim below against real, runnable code — not a hand-picked example.
+prove every claim below against real, runnable code, not a hand-picked example.
 
 ## The problem
 
@@ -19,13 +19,13 @@ split into packages to keep them maintainable. Two things go wrong over time:
 
 1. Code quietly crosses boundaries it shouldn't.
 2. Nobody can confidently answer "if I change this, what else might break, and
-   what should I test?" — because the real dependency graph is scattered
-   across static code, runtime behaviour, and Git history, and no single tool
-   looks at all three together.
+   what should I test?" The real dependency graph is scattered across static
+   code, runtime behaviour, and Git history, and no single tool looks at all
+   three together.
 
 ## Why static analysis alone is not enough
 
-Packwerk — Shopify's own open-source boundary-enforcement tool — says this
+Packwerk, Shopify's own open-source boundary-enforcement tool, says this
 about itself, in its own README:
 
 > "Method calls and objects passed around the application are completely
@@ -35,7 +35,7 @@ about itself, in its own README:
 That is a real, admitted limitation, and it is the reason MonolithLens exists.
 The demo app in this repo contains a dependency that is enqueued through a
 string (`"Notifications::ReceiptJob".constantize.perform_later(...)`) rather
-than a plain constant reference. Static analysis — Packwerk's and ours —
+than a plain constant reference. Static analysis, Packwerk's and ours,
 cannot see it. Running the test suite with tracing enabled does.
 
 ## How MonolithLens differs from existing tools
@@ -49,7 +49,7 @@ MonolithLens does not replace or claim to out-perform the tools it builds on:
 | **AppMap** | Captures runtime execution traces | We use a narrower, purpose-built runtime tracer (job enqueues) specifically to corroborate or contradict static evidence, not for general observability |
 | **Crystalball** | Runtime-based regression test selection | Our test recommendation is simpler (graph + naming convention) but is derived from the same merged static+runtime graph as everything else, not a separate subsystem |
 
-The differentiator is not any one piece — it's combining declared
+The differentiator is not any one piece. It's combining declared
 architecture, static analysis, and runtime observation into one evidence
 model, and using that model for Git-diff-driven change-impact analysis.
 
@@ -88,7 +88,7 @@ AST and extracts three kinds of high-confidence dependency, each with evidence
   weigh them differently
 
 It never executes the analyzed code, and it never claims to build a complete
-Ruby call graph — Ruby is too dynamic for that. Bare, unqualified constants
+Ruby call graph. Ruby is too dynamic for that. Bare, unqualified constants
 (`String`, `MAX_SIZE`) are deliberately not treated as dependencies yet:
 telling application code apart from a language built-in needs a whole-repo
 symbol table, which is a documented, honest limitation rather than a guess.
@@ -107,9 +107,9 @@ via an environment variable, never in production.
 `MonolithLens::Analysis::EvidenceMerger` groups static and runtime edges by
 `(source, target)` and classifies each into:
 
-- `static_and_runtime` — confirmed by both sources (confidence 1.0)
-- `runtime_only` — real, but invisible to static analysis (confidence 0.7)
-- `static_only` — seen in source, not observed at runtime; scored by how
+- `static_and_runtime`: confirmed by both sources (confidence 1.0)
+- `runtime_only`: real, but invisible to static analysis (confidence 0.7)
+- `static_only`: seen in source, not observed at runtime; scored by how
   strong the static signal was (inheritance/mixin: 0.85, call receiver: 0.7,
   plain value: 0.5)
 
@@ -131,7 +131,7 @@ Packwerk checks one reference at a time and can only ever report "undeclared
 reference." Because MonolithLens builds the *whole* package graph, it can
 additionally answer a question Packwerk structurally cannot: whether any
 packages depend on each other in a loop. This is done with Ruby's standard
-library `TSort` (strongly connected components) — no custom graph algorithm,
+library `TSort` (strongly connected components): no custom graph algorithm,
 no added dependency.
 
 ## How change impact is calculated
@@ -143,7 +143,7 @@ maps those files to the constants they define, then walks the *reverse*
 dependency graph outward: direct dependents, then transitive dependents,
 breadth-first, until nothing new is found.
 
-It also produces a single **blast radius score** — a weighted count of the
+It also produces a single **blast radius score**: a weighted count of the
 affected code, where direct dependents count 3× and transitive dependents 1×,
 because a direct dependent is more likely to actually break. It's a quick
 at-a-glance sense of "how risky is this change" that sits at the top of the
@@ -156,7 +156,7 @@ For every affected constant, MonolithLens looks up its source file and
 recommends any spec file matching Ruby's naming convention
 (`invoice.rb` → `invoice_spec.rb`). This is intentionally simple rather than
 elaborate reason-ranking, and it never claims that an unselected test is
-guaranteed unnecessary — only that these specific tests cover code in the
+guaranteed unnecessary, only that these specific tests cover code in the
 blast radius.
 
 ## The demo Rails application
@@ -170,7 +170,7 @@ against something real. It deliberately contains:
   `Billing::Invoice` without `packs/notifications` declaring `packs/billing`)
 - A dependency cycle (`Billing::InvoiceProcessor` references
   `Reporting::RevenueSummary` without declaring it, while Reporting declares
-  Billing) — Packwerk cannot declare a cycle directly (`packwerk validate`
+  Billing). Packwerk cannot declare a cycle directly (`packwerk validate`
   rejects it), so real cycles necessarily appear as undeclared references;
   MonolithLens names the loop, Packwerk cannot
 - A runtime-only hidden dependency (`Billing::InvoiceProcessor` enqueues
@@ -236,11 +236,11 @@ the bundled demo app, I ran `monolith-lens scan` against the `skeleton` and
 repo). Those fixtures exercise real Sorbet `# typed:` annotations, classes
 reopened across multiple files, deeply nested namespaces
 (`Sales::Order::Error`), and Shopify's own `components/<name>/app/{models,
-internal,public}` package layout — and the scanner parsed all of it cleanly
+internal,public}` package layout, and the scanner parsed all of it cleanly
 with zero crashes.
 
 The fixtures themselves define constants without referencing each other (by
-design — Packwerk's own tests inject references at the test-code level, not
+design: Packwerk's own tests inject references at the test-code level, not
 in the fixtures), so the correct scan result is genuinely 0 edges. To confirm
 that's a fact about the fixtures and not a bug in MonolithLens, I reproduced
 Shopify's exact package layout with one added cross-package reference
@@ -266,22 +266,22 @@ Sales::Order -> Timeline::Event (constant_reference, line 5)
 
 Deliberately out of scope for this stage, in order of what I'd build next:
 
-- **Redis-backed incremental caching** — content-addressed keys per file
+- **Redis-backed incremental caching**: content-addressed keys per file
   hash (`monolith_lens:v1:ast:{repo}:{sha256}`), so a warm re-scan skips
   unchanged files. Designed with a fail-open requirement (a Redis outage
   degrades performance, never correctness) and cache versioning to avoid
-  deserializing stale schemas — deferred because nothing else in this stage
+  deserializing stale schemas. Deferred because nothing else in this stage
   is slow enough yet to make the cache-hit numbers meaningful.
-- **Interactive HTML report** (Cytoscape.js graph with an evidence panel) —
+- **Interactive HTML report** (Cytoscape.js graph with an evidence panel):
   JSON output already contains everything needed to render one.
-- **GitHub Actions integration** — running `monolith-lens impact` against a
+- **GitHub Actions integration**: running `monolith-lens impact` against a
   pull request diff and posting the result as a check or PR comment.
-- **Whole-repository symbol table** — to safely start reasoning about bare,
+- **Whole-repository symbol table**: to safely start reasoning about bare,
   unqualified constant references.
-- **Additional runtime signals** — SQL activity, callback execution, and a
+- **Additional runtime signals**: SQL activity, callback execution, and a
   custom service-call instrumentation event, using the same
   `ActiveSupport::Notifications` mechanism already in place.
-- **Additional test-framework adapters** — the recommendation logic assumes
+- **Additional test-framework adapters**: the recommendation logic assumes
   RSpec-style spec naming; the interface is narrow enough to add Minitest
   support without changing callers.
 
