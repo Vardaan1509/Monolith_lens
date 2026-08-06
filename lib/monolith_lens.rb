@@ -16,6 +16,8 @@ require_relative "monolith_lens/analysis/classified_edge"
 require_relative "monolith_lens/analysis/edge_classifier"
 require_relative "monolith_lens/analysis/package_graph"
 require_relative "monolith_lens/analysis/package_analysis"
+require_relative "monolith_lens/analysis/merged_edge"
+require_relative "monolith_lens/analysis/evidence_merger"
 require_relative "monolith_lens/runtime/trace_ingester"
 
 module MonolithLens
